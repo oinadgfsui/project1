@@ -1,0 +1,103 @@
+function pi_hat = three(D)
+% Input:
+%   D       - how many significant digits of pi you want
+% Output:
+%   pi_hat  - final estimated value of pi
+
+    % ---------------- Initialization ----------------
+    z = 1.96;   % z value when 95% confidence level
+    % tolerance: how close we want to be
+    % if D=2, tolerance is 0.05
+    % if D=3, tolerance is 0.005
+    % formula: 0.5 * 10^(1 - D)
+    tol = 0.5 * 10^(1 - D);
+
+    rng(1);     % fix random seed, so we always get the same result
+
+    % counters
+    n = 0;      % total points made
+    hits = 0;   % points inside the quarter circle
+
+    % ---------------- FIGURE ----------------
+    figure('Color','w','Name','Monte Carlo pi (Simple)');
+    hold on;
+    axis([0 1 0 1]);  % square from 0 to 1
+    axis square;      % make x and y scale equal
+    xlabel('x'); ylabel('y');
+    title(sprintf('Estimating pi with target: %d significant digits', D));
+
+    % draw the quarter circle curve (radius 1)
+    t = linspace(0, pi/2, 400);
+    plot(cos(t), sin(t), 'k-', 'LineWidth', 1.2);
+
+    % make two point sets: blue for inside, red for outside
+    hIn  = plot(NaN, NaN, '.', 'MarkerSize', 8, 'Color', [0.2 0.5 1.0]); 
+    hOut = plot(NaN, NaN, '.', 'MarkerSize', 8, 'Color', [1.0 0.3 0.3]);
+
+    % arrays to store coordinates
+    xin = []; yin = [];     % inside points
+    xout = []; yout = [];   % outside points
+
+    % ---------------- MAIN LOOP ----------------
+    tic; % start timer
+
+    while true
+        % make one random point (x,y) between 0 and 1
+        x = rand;
+        y = rand;
+        n = n + 1; % increase count
+
+        % check if the point is inside the circle
+        if x^2 + y^2 <= 1
+            hits = hits + 1;   % count as hit
+            xin(end+1,1)  = x; % save x
+            yin(end+1,1)  = y; % save y
+        else
+            xout(end+1,1) = x; % save x outside
+            yout(end+1,1) = y; % save y outside
+        end
+
+        % estimate probability of being inside
+        p_hat = hits / n;
+
+        % estimate pi from probability
+        pi_hat = 4 * p_hat;
+
+        % calculate margin of error (half-width)
+        if hits > 0 && hits < n
+            se = 4 * sqrt(p_hat * (1 - p_hat) / n); % standard error
+            halfWidth = z * se;
+        else
+            halfWidth = inf; % in case p_hat=0 or 1
+        end
+
+        % update scatter plot
+        set(hIn,  'XData', xin,  'YData', yin);
+        set(hOut, 'XData', xout, 'YData', yout);
+        drawnow; % refresh figure
+
+        % stop if margin of error is small enough
+        if halfWidth <= tol
+            break;
+        end
+    end
+
+    elapsed = toc; % stop timer
+
+    % ---------------- FINAL OUTPUT ----------------
+    % format pi value to D digits
+    pi_str = num2str(pi_hat, D);
+
+    % print result in command window
+    fprintf('Reached %d significant digits: n=%d, pi≈%s, halfWidth=%.6g (tol=%.6g), time=%.3f s\n', ...
+            D, n, pi_str, halfWidth, tol, elapsed);
+
+    % make a text label in the middle of the figure
+    % two lines: one for pi, one for time
+    labelLines = {['pi ≈ ' pi_str], sprintf('Time = %.3f s', elapsed)};
+    text(0.5, 0.5, labelLines, ...
+        'Units','normalized','HorizontalAlignment','center', ...
+        'FontSize',16,'FontWeight','bold', ...
+        'BackgroundColor','w','Margin',8, ...
+        'Interpreter','tex'); % let \pi show as π
+end
